@@ -8,7 +8,7 @@ def scores_houses(data: pandas.DataFrame, course: str):
     """Returns two lists: one with scores and one with respespective houses."""
     score = []
     house = []
-    for i in data["Index"]:
+    for i in data.Index:
         if data.at[i, course] == data.at[i, course]:
             match data.at[i, "Hogwarts House"]:
                 case "Ravenclaw":
@@ -41,9 +41,10 @@ def main() -> None:
         for i in range(len(columns)):
             axis[i].hist2d(*scores_houses(data, columns[i]), bins=(100, 4))
             axis[i].set_axis_off()
-            axis[i].set_title(columns[i], x=-0.02, y=0, loc="right",
+            axis[i].set_title(columns[i], x=-0.02, y=0.2, loc="right",
                               color=(1, 1, 1))
-        plt.subplots_adjust(left=0.2, right=0.9, top=0.99, bottom=0.01)
+        plt.subplots_adjust(left=0.2, right=0.9, top=0.99, bottom=0.01,
+                            hspace=1)
         plt.show()
     except Exception as err:
         print(f"{type(err).__name__}: {err}", file=sys.stderr)

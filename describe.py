@@ -68,7 +68,6 @@ def main() -> None:
             {x: get_stats(data[x].values) for x in data.columns},
             ["Count", "Mean", "Std", "Min", "25%", "50%", "75%", "Max"])
         print(stat)
-        print(get_stats(range(1, 11)))
         return (None)
     except Exception as err:
         print(f"{err.__class__.__name__}: {err}", file=sys.stderr)
