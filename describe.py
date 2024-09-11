@@ -39,31 +39,36 @@ def get_stats(data: list) -> list:
     def per(p: int) -> float | int:
         p = (p * (n - 1) / 100)
         r = p % 1
-        p = int(p - r) - 1
-        return (data[p + 1] + r * (data[p + 2] - data[p + 1]))
+        p = int(p - r)
+        return (data[p] + r * (data[p + 1] - data[p]))
 
-    mean = 0
-    for x in data:
-        mean += x
-    mean /= n
-    std = 0
-    for x in data:
-        std += (mean - x) ** 2
-    std = (std / n) ** 0.5
-    return ([n, mean, std, data[0], per(25), per(50), per(75), data[-1]])
+    def mean_std():
+        mean = 0
+        std = 0
+        for x in data:
+            mean += x
+        mean /= n
+        std = 0
+        for x in data:
+            std += (mean - x) ** 2
+        std = (std / n) ** 0.5
+        return (mean, std)
+
+    return ([n, *mean_std(), data[0], per(25), per(50), per(75), data[-1]])
 
 
 def main() -> None:
     """Entrypoint of the application."""
     try:
         parser = argparse.ArgumentParser(usage="Describes the data file.")
-        parser.add_argument("data", help="dataset to be read")
+        parser.add_argument("data", help="Dataset to be read.")
         data = pandas.read_csv(parser.parse_args().data)
         data = data.select_dtypes(include=(float, int))
         stat = pandas.DataFrame(
             {x: get_stats(data[x].values) for x in data.columns},
             ["Count", "Mean", "Std", "Min", "25%", "50%", "75%", "Max"])
         print(stat)
+        print(get_stats(range(1, 11)))
         return (None)
     except Exception as err:
         print(f"{err.__class__.__name__}: {err}", file=sys.stderr)
