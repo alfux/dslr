@@ -63,7 +63,7 @@ def main() -> None:
         parser = argparse.ArgumentParser(usage="Describes the data file.")
         parser.add_argument("data", help="Dataset to be read.")
         data = pandas.read_csv(parser.parse_args().data)
-        data = data.select_dtypes(include=(float, int))
+        data = data.select_dtypes(include=(float))
         stat = pandas.DataFrame(
             {x: get_stats(data[x].values) for x in data.columns},
             ["Count", "Mean", "Std", "Min", "25%", "50%", "75%", "Max"])
