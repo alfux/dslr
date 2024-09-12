@@ -80,7 +80,7 @@ def main() -> None:
         for i in range(len(buttons)):
             buttons[i].on_clicked(create_callback(i))
         fig.add_subplot(position=(0.125, 0.15, 0.75, 0.75))
-        display_course(fig, course[0], data.columns[0], color)
+        display_course(fig, course[10], data.columns[10], color)
         plt.show()
     except Exception as err:
         print(f"{type(err).__name__}: {err}", file=sys.stderr)
