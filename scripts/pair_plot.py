@@ -6,6 +6,7 @@ from pandas import DataFrame
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.backend_bases import KeyEvent
+
 from tools import courses_gen, shorten
 
 

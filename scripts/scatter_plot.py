@@ -1,11 +1,11 @@
 import argparse
 import sys
-
 from typing import Callable
 
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backend_bases import MouseEvent, MouseButton
+
 from tools import courses_gen, button_gen, close_callback
 from tools import Figure, Button
 

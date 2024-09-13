@@ -1,74 +1,71 @@
-import argparse
-import pandas
 import sys
+import argparse
+from typing import Generator
+
+import pandas as pd
+from pandas import DataFrame, Series
 
 
-def quicksort(v: list) -> list:
-    """Quicksort algorithm to sort a list"""
-    n = len(v)
+class Statistics:
+    """Stores statistics in fields, based on the given datas"""
+    field_names = ["Count", "Mean", "Var", "Std", "Min", "25%", "50%", "75%",
+                   "Max"]
 
-    def is_sorted() -> None:
-        if n < 2:
-            return (True)
-        prev = v[0]
-        for x in v:
-            if prev > x:
-                return (False)
-            else:
-                prev = x
-        return (True)
+    def __init__(self, data: Series) -> None:
+        """Initializes each field with its processed value."""
+        self.data = Statistics.quicksort([x for x in data if x == x])
+        self.fields = {x: None for x in Statistics.field_names}
+        self.fields["Count"] = len(self.data)
+        self.fields["Min"] = self.data[0]
+        self.fields["25%"] = self.percentile(25)
+        self.fields["50%"] = self.percentile(50)
+        self.fields["75%"] = self.percentile(75)
+        self.fields["Max"] = self.data[-1]
+        self.compute_mean_var_std()
 
-    if is_sorted():
-        return (v)
-    v1 = list()
-    v2 = list()
-    for i in range(n - 1):
-        if (v[i] < v[-1]):
-            v1 += [v[i]]
-        else:
-            v2 += [v[i]]
-    return (quicksort(v1) + [v[-1]] + quicksort(v2))
-
-
-def get_stats(data: list) -> list:
-    """Generator for stats of each data columns."""
-    data = [x for x in data if x == x]
-    data = quicksort(data)
-    n = len(data)
-
-    def per(p: int) -> float | int:
-        p = (p * (n - 1) / 100)
+    def percentile(self, p: int) -> float | int:
+        """Compute sorted list p'th percentile."""
+        p = (p * (self.fields["Count"] - 1) / 100)
         r = p % 1
         p = int(p - r)
-        return (data[p] + r * (data[p + 1] - data[p]))
+        return (self.data[p] + r * (self.data[p + 1] - self.data[p]))
 
-    def mean_std():
-        mean = 0
-        std = 0
-        for x in data:
-            mean += x
-        mean /= n
-        std = 0
-        for x in data:
-            std += (mean - x) ** 2
-        std = (std / n) ** 0.5
-        return (mean, std)
+    def compute_mean_var_std(self) -> None:
+        """Compute mean, variance and standard deviation with a single read."""
+        self.fields["Mean"] = 0
+        self.fields["Var"] = 0
+        for x in self.data:
+            self.fields["Mean"] += x
+            self.fields["Var"] += x ** 2
+        self.fields["Mean"] /= self.fields["Count"]
+        self.fields["Var"] /= self.fields["Count"]
+        self.fields["Var"] -= self.fields["Mean"] ** 2
+        self.fields["Std"] = self.fields["Var"] ** 0.5
 
-    return ([n, *mean_std(), data[0], per(25), per(50), per(75), data[-1]])
+    def quicksort(data: list) -> list:
+        """Quicksort sorting algorithm."""
+        if len(data) < 2:
+            return data
+        pivot = data[len(data) // 2]
+        data1 = [x for x in data if x < pivot]
+        data2 = [x for x in data if x > pivot]
+        return (Statistics.quicksort(data1) + [pivot] +
+                Statistics.quicksort(data2))
 
 
 def main() -> None:
-    """Entrypoint of the application."""
+    """Displays statistics on each courses datas from the argument."""
     try:
         parser = argparse.ArgumentParser(usage="Describes the data file.")
         parser.add_argument("data", help="Dataset to be read.")
-        data = pandas.read_csv(parser.parse_args().data)
-        data = data.select_dtypes(include=(float))
-        stat = pandas.DataFrame(
-            {x: get_stats(data[x].values) for x in data.columns},
-            ["Count", "Mean", "Std", "Min", "25%", "50%", "75%", "Max"])
-        print(stat)
-        return (None)
+        data = pd.read_csv(parser.parse_args().data).select_dtypes(float)
+
+        def statistics_generator() -> Generator:
+            """Generator of Series of Statistics for each columns in data."""
+            for x in data.columns:
+                yield Series(Statistics(data[x]).fields, name=x)
+
+        print(DataFrame(statistics_generator()))
     except Exception as err:
         print(f"{err.__class__.__name__}: {err}", file=sys.stderr)
 
