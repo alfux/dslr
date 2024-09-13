@@ -14,9 +14,9 @@ def close_callback(event: KeyEvent) -> None:
         plt.close()
 
 
-def shorten(string: str) -> str:
+def shorten(string: str, size: int = 15) -> str:
     """Shortens long names for buttons."""
-    if len(string) > 15:
+    if len(string) > size:
         new_string = ""
         for c in string:
             if c.isupper():
@@ -44,7 +44,7 @@ def house_gen(data: DataFrame, course: str, house: str) -> Generator:
         i += 1
 
 
-def course_gen(raw_data: DataFrame, data: DataFrame) -> Generator:
+def courses_gen(raw_data: DataFrame, data: DataFrame) -> Generator:
     """Generator for a list of dictionaries holding houses datas."""
     for course in data.columns:
         yield (course,

@@ -6,7 +6,7 @@ from typing import Callable
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backend_bases import Event
-from tools import course_gen, button_gen, close_callback
+from tools import courses_gen, button_gen, close_callback
 from tools import Figure, Button
 
 
@@ -28,7 +28,7 @@ def main() -> None:
         parser.add_argument("data", help="Raw dataset to read.")
         raw_data = pd.read_csv(parser.parse_args().data)
         data = raw_data.select_dtypes(float)
-        course = list(course_gen(raw_data, data))
+        course = list(courses_gen(raw_data, data))
         color = {"Ravenclaw": (0.3, 0, 1, 1), "Slytherin": (0, 0.5, 0, 1),
                  "Gryffindor": (1, 0, 0, 1), "Hufflepuff": (1, 0.7, 0, 1)}
         fig = plt.figure("Histograms", facecolor=(0.8, 0.8, 0.8))
