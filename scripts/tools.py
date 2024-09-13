@@ -1,11 +1,11 @@
 from typing import Generator
 
+from pandas import Index
+from pandas import DataFrame
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.widgets import Button
 from matplotlib.backend_bases import KeyEvent
-from pandas import Index
-from pandas import DataFrame
 
 
 def close_callback(event: KeyEvent) -> None:

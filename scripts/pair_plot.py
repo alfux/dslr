@@ -15,19 +15,19 @@ class PairPlot:
     def __init__(self, name: str, raw_data: DataFrame) -> None:
         """Sets datas to create a scatter plot matrix based on raw_data."""
         self.fig = plt.figure(name)
-        self.fig.suptitle(name)
-        self.fig.set_facecolor((0.8, 0.8, 0.8))
-        self.fig.set_size_inches(15, 9)
+        self.fig.set_facecolor((.8, .8, .8))
+        self.fig.subplots_adjust(.05, 0.02, .99, .93)
+        self.fig.set_size_inches(17, 9.5)
         self.fig.canvas.mpl_connect("key_press_event", PairPlot.close_callback)
         self.raw_data = raw_data
         self.data = raw_data.select_dtypes(float)
         self.courses = list(courses_gen(self.raw_data, self.data))
         self.houses = self.courses[0][1].keys()
-        self.colors = {
-            "Ravenclaw": (0.3, 0, 1, 1), "Slytherin": (0, 0.5, 0, 1),
-            "Gryffindor": (1, 0, 0, 1), "Hufflepuff": (1, 0.7, 0, 1)}
+        self.colors = {"Ravenclaw": (.3, 0, 1, 1), "Slytherin": (0, .5, 0, 1),
+                       "Gryffindor": (1, 0, 0, 1), "Hufflepuff": (1, .7, 0, 1)}
         self.set_subplots()
-        self.fig.legend(self.houses, fancybox=True, shadow=True)
+        self.fig.legend(self.houses, fancybox=True, shadow=True, ncol=4,
+                        loc="upper center")
 
     def close_callback(event: KeyEvent) -> None:
         """Callback function to close the app with escape key."""
@@ -46,20 +46,17 @@ class PairPlot:
         """Sets axes datas of a single subplot."""
         for h in self.houses:
             if i == j:
-                (_, _, hl) = axes.hist(self.courses[i][1][h], bins=50)
-                hl[0].set_label(h)
-                hl[0].set_color(self.colors[h])
+                axes.hist(self.courses[i][1][h], bins=50, color=self.colors[h],
+                          label=h)
             else:
-                hl = axes.scatter(self.courses[j][1][h], self.courses[i][1][h])
-                hl.set_color(self.colors[h])
-                hl.set_label(h)
-                hl.set_sizes([0.1])
+                axes.scatter(self.courses[j][1][h], self.courses[i][1][h],
+                             color=self.colors[h], label=h, sizes=[0.1])
         if j > 0:
             axes.tick_params('y', labelleft=False)
         else:
             axes.tick_params('y', labelsize=5)
             axes.set_ylabel(shorten(self.courses[i][0], 10), {"fontsize": 7})
-            axes.yaxis.set_label_coords(-0.5, 0.5)
+            axes.yaxis.set_label_coords(-.5, .5)
         if i == 0:
             axes.tick_params('x', labeltop=True, labelsize=5)
             axes.set_xlabel(shorten(self.courses[j][0]), {"fontsize": 7})
