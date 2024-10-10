@@ -1,6 +1,5 @@
 import argparse
 import sys
-import warnings
 
 import pandas as pd
 import numpy as np
@@ -21,14 +20,16 @@ def data_mean(data: np.array) -> float:
     return np.sum(data) / len(data)
 
 
-def sorting_hat(student: pd.Series, weights: pd.Series) -> None:
+def sorting_hat(student: pd.Series, weights: pd.Series) -> int:
     """Choose a house for a student based on results."""
     expected = student[0]
     student = student.drop(0)
     odds = [logistic(student, weights["R"]), logistic(student, weights["S"]),
             logistic(student, weights["G"]), logistic(student, weights["H"])]
     houses = ["Ravenclaw", "Slytherin", "Gryffindor", "Hufflepuff"]
-    print(f"expected: {expected} -> {houses[odds.index(np.max(odds))]}")
+    predicted = houses[odds.index(np.max(odds))]
+    print(f"expected: {expected} -> {predicted}")
+    return 1 if predicted == expected else 0
 
 
 def logistic(x: pd.Series, weights: pd.Series) -> float:
@@ -39,7 +40,6 @@ def logistic(x: pd.Series, weights: pd.Series) -> float:
 def main() -> None:
     """Use trained weights to make predictions on a dataset."""
     try:
-        warnings.simplefilter("ignore")
         parser = argparse.ArgumentParser(
             sys.argv[0], f"{sys.argv[0]} [dataset] [weights]")
         parser.add_argument("dataset", help="dataset used for predictions")
@@ -49,8 +49,10 @@ def main() -> None:
         data = data.drop(["Index", "First Name", "Last Name",
                           "Birthday", "Best Hand"], axis="columns")
         data = pre_process_data(data)
+        precision = 0
         for i in range(data.shape[0]):
-            sorting_hat(data.loc[i], weights)
+            precision += sorting_hat(data.loc[i], weights)
+        print(f"The sorting hat was {precision / data.shape[0]:.2%} right")
     except Exception as err:
         print(f"{err.__class__.__name__}: {err}", sys.stderr)
 
