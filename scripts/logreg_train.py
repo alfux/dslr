@@ -1,6 +1,5 @@
 import sys
 import argparse
-import traceback
 from typing import Self, Callable, Generator
 
 import numpy as np
@@ -161,8 +160,8 @@ def main() -> None:
         SortingHat = SortingHatLogreg(data)
         SortingHat.logreg_coefficients.to_csv("./datasets/logreg_coefs.csv",
                                               index=False)
-    except Exception:
-        print(traceback.format_exc(), file=sys.stderr)
+    except Exception as err:
+        print(f"{err.__class__.__name__}: {err}", sys.stderr)
 
 
 if __name__ == "__main__":
