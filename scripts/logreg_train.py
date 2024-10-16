@@ -1,6 +1,7 @@
 import sys
 import argparse
-from typing import Self, Callable, Generator
+import traceback
+from typing import Self, Callable
 
 import numpy as np
 import pandas as pd
@@ -9,17 +10,18 @@ import pandas as pd
 class SortingHatLogreg:
     """Computes the sorting hat coefficient by logistic regression."""
 
-    def __init__(self: Self, data: pd.DataFrame,
-                 descent_epsilon: float = 1e-4,
-                 bissection_epsilon: float = 1e-10):
+    def __init__(self: Self, data: pd.DataFrame, epsilon: float = 1e-2):
         """Starts a logistic regression for each house."""
         self._data = self._pre_process_data(data)
-        self._bissection_epsilon = bissection_epsilon
-        self._descent_epsilon = descent_epsilon
+        self._epsilon = epsilon
         self._raven = self._descent(self._observed_ravenclaw)
+        print("\rRavenclaw: complete !")
         self._slyth = self._descent(self._observed_slytherin)
+        print("\rSlytherin: complete !")
         self._gryff = self._descent(self._observed_gryffindor)
+        print("\rGryffindor: complete !")
         self._huffl = self._descent(self._observed_hufflepuff)
+        print("\rHufflepuff: complete !")
         self.logreg_coefficients = pd.DataFrame(
             {"R": self._raven, "S": self._slyth,
              "G": self._gryff, "H": self._huffl})
@@ -59,26 +61,21 @@ class SortingHatLogreg:
         """Returns approximation of point p where log-likelihood is maximal."""
         self._y = y
         p = np.array([0] * len(self._data.columns))
-        nabla = self._gradient(p)
-        norm = np.linalg.norm(nabla)
-        self._iteration = 1
-        print(norm)
-        while norm > self._descent_epsilon:
+        (nabla, norm) = self._gradient(p)
+        while norm > self._epsilon:
+            print(f"\r{np.clip(self._epsilon / norm, 0, 1):.2%}", end="")
             nabla /= norm
             p = p + self._learning_rate(p, nabla) * nabla
-            nabla = self._gradient(p)
-            norm = np.linalg.norm(nabla)
-            self._iteration += 1
-            print(f"{self._iteration}: {np.linalg.norm(nabla)}")
+            (nabla, norm) = self._gradient(p)
         for i in range(0, len(p)):
             p[i] /= self._reduc_coef[i]
         return p
 
     def _learning_rate(self: Self, p: np.array, nabla: np.array) -> float:
         """Computes an approximate of the optimal learning rate."""
-
+        
         def d_dt(t: float) -> float:
-            """(first, second) derivative of line search log-likelihood."""
+            """Derivative of line search log-likelihood."""
             d_dt = 0
             for i in range(self._data.shape[0]):
                 xi = np.array(self._data.loc[i])
@@ -86,9 +83,6 @@ class SortingHatLogreg:
                 xi[0] = 1 / 14
                 yi_nabla_xi = yi * np.dot(nabla, xi)
                 exposant = yi * np.dot(p, xi) + t * yi_nabla_xi
-                if (exposant > 700):
-                    print(i, xi)
-                    quit()
                 d_dt += yi_nabla_xi / (1 + np.exp(exposant))
             return d_dt / self._data.shape[0]
 
@@ -101,8 +95,8 @@ class SortingHatLogreg:
             a -= step
             b += step
             (fa, fb) = (f(a), f(b))
-        while (np.abs(fa) > self._bissection_epsilon and
-               np.abs(fb) > self._bissection_epsilon):
+        while (np.abs(fa) > self._epsilon and
+               np.abs(fb) > self._epsilon):
             c = (a + b) / 2
             fc = f(c)
             if np.sign(fa) * np.sign(fc) > 0:
@@ -111,21 +105,18 @@ class SortingHatLogreg:
                 (b, fb) = (c, fc)
         return a if np.abs(fa) < np.abs(fb) else b
 
-    def _gradient(self: Self, p: np.array) -> np.array:
+    def _gradient(self: Self, p: np.array) -> tuple[np.array, float]:
         """Computes the gradient of the log-likelihood in point p."""
-
-        def partial_derivative_generator() -> Generator:
-            """Computes partial derivative in the jth direction."""
-            for j in range(self._data.shape[1]):
-                sum = 0
-                for i in range(self._data.shape[0]):
-                    xi = [x for x in self._data.loc[i]]
-                    yi = self._y(xi[0])
-                    xi[0] = 1 / 14
-                    sum += yi * xi[j] / (1 + np.exp(yi * np.dot(p, xi)))
-                yield sum / self._data.shape[0]
-
-        return np.fromiter(partial_derivative_generator(), float)
+        dim = self._data.shape[1]
+        sum = np.array([0.0] * dim)
+        for i in range(self._data.shape[0]):
+            xi = [x for x in self._data.loc[i]]
+            yi = self._y(xi[0])
+            xi[0] = 1 / 14
+            p_xi = np.dot(p, xi)
+            sum += [yi * xi[j] / (1 + np.exp(yi * p_xi)) for j in range(dim)]
+        sum /= self._data.shape[0]
+        return (sum, np.linalg.norm(sum))
 
     def _observed_ravenclaw(self: Self, house: str) -> int:
         """Digital representation of the observed belonging to ravenclaw."""
@@ -161,6 +152,7 @@ def main() -> None:
         SortingHat.logreg_coefficients.to_csv("./datasets/logreg_coefs.csv",
                                               index=False)
     except Exception as err:
+        print(traceback.format_exc())
         print(f"{err.__class__.__name__}: {err}", sys.stderr)
 
 
