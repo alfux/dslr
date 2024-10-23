@@ -1,7 +1,7 @@
 import sys
 import argparse
 import traceback
-from typing import Self, Callable
+from typing import Callable
 
 import numpy as np
 import pandas as pd
@@ -10,7 +10,7 @@ import pandas as pd
 class SortingHatLogreg:
     """Computes the sorting hat coefficient by logistic regression."""
 
-    def __init__(self: Self, data: pd.DataFrame, epsilon: float = 1e-2):
+    def __init__(self: any, data: pd.DataFrame, epsilon: float = 1e-2):
         """Starts a logistic regression for each house."""
         self._epsilon = epsilon
         self._data = self._pre_process_data(data.drop(
@@ -36,7 +36,7 @@ class SortingHatLogreg:
             {"R": self._raven, "S": self._slyth,
              "G": self._gryff, "H": self._huffl})
 
-    def _pre_process_data(self: Self, data: pd.DataFrame) -> pd.DataFrame:
+    def _pre_process_data(self: any, data: pd.DataFrame) -> pd.DataFrame:
         """Pre-processes datas for logistic regression."""
         index = {k: i for (k, i) in zip(data.columns, range(data.shape[1]))}
         data = data.rename(index, axis=1)
@@ -47,7 +47,7 @@ class SortingHatLogreg:
             self._reduc_coef[i] = reduc
         return data
 
-    def _compute_means(self: Self, data: pd.Series) -> tuple:
+    def _compute_means(self: any, data: pd.Series) -> tuple:
         """Computes data's mean and integer digits' mean."""
         no_nan_data = [x for x in data if x == x]
         (mean, reduc) = (0, 0)
@@ -58,7 +58,7 @@ class SortingHatLogreg:
         mean = mean / (len(no_nan_data) * reduc)
         return (mean, reduc)
 
-    def _count_digit(self: Self, number: float) -> int:
+    def _count_digit(self: any, number: float) -> int:
         """Counts digits to the left of the dot."""
         i = 0
         number = np.abs(number)
@@ -67,7 +67,7 @@ class SortingHatLogreg:
             i += 1
         return i
 
-    def _descent(self: Self, y: Callable) -> np.array:
+    def _descent(self: any, y: Callable) -> np.array:
         """Batch gradient descent to maximize log-likelihood."""
         self._y = y
         p = np.array([0] * len(self._data.columns))
@@ -81,13 +81,14 @@ class SortingHatLogreg:
             p[i] /= self._reduc_coef[i]
         return [p[i] if i < len(p) else 0 for i in range(14)]
 
-    def _stochastic_descent(self: Self, y: Callable) -> np.array:
+    def _stochastic_descent(self: any, y: Callable) -> np.array:
         """Stochastic gradient descent to maximize log-likelihood."""
         self._y = y
         # p = np.array([0] * len(self._data.columns))
 
-    def _learning_rate(self: Self, p: np.array, nabla: np.array) -> float:
+    def _learning_rate(self: any, p: np.array, nabla: np.array) -> float:
         """Computes an approximate of the optimal learning rate."""
+        return (1e-0)
 
         def d_dt(t: float) -> float:
             """Derivative of line search log-likelihood."""
@@ -103,11 +104,11 @@ class SortingHatLogreg:
 
         return self._bissection(d_dt)
 
-    def _stochastic_learning_rate(self: Self, y: Callable) -> float:
+    def _stochastic_learning_rate(self: any, y: Callable) -> float:
         """Computes an approximate of the optimal stochastic learning rate."""
         pass
 
-    def _bissection(self: Self, f: Callable) -> float:
+    def _bissection(self: any, f: Callable) -> float:
         """Finds a zero from f by bissection method."""
         (a, b, step, fa, fb) = (-1, 1, 1, f(-1), f(1))
         while fa * fb > 0:
@@ -124,7 +125,7 @@ class SortingHatLogreg:
                 (b, fb) = (c, fc)
         return a if np.abs(fa) < np.abs(fb) else b
 
-    def _gradient(self: Self, p: np.array) -> tuple[np.array, float]:
+    def _gradient(self: any, p: np.array) -> tuple[np.array, float]:
         """Computes the gradient of the log-likelihood in point p."""
         dim = self._data.shape[1]
         sum = np.array([0.0] * dim)
@@ -137,23 +138,23 @@ class SortingHatLogreg:
         sum /= self._data.shape[0]
         return (sum, np.linalg.norm(sum))
 
-    def _stochastic_grad(self: Self, p: np.array) -> tuple[np.array, float]:
+    def _stochastic_grad(self: any, p: np.array) -> tuple[np.array, float]:
         """Computes the gradient of the one-lined-log-likelihood in point p."""
         pass
 
-    def _observed_ravenclaw(self: Self, house: str) -> int:
+    def _observed_ravenclaw(self: any, house: str) -> int:
         """Digital representation of the observed belonging to ravenclaw."""
         return 1 if house == "Ravenclaw" else -1
 
-    def _observed_slytherin(self: Self, house: str) -> int:
+    def _observed_slytherin(self: any, house: str) -> int:
         """Digital representation of the observed belonging to slytherin."""
         return 1 if house == "Slytherin" else -1
 
-    def _observed_gryffindor(self: Self, house: str) -> int:
+    def _observed_gryffindor(self: any, house: str) -> int:
         """Digital representation of the observed belonging to gryffindor."""
         return 1 if house == "Gryffindor" else -1
 
-    def _observed_hufflepuff(self: Self, house: str) -> int:
+    def _observed_hufflepuff(self: any, house: str) -> int:
         """Digital representation of the observed belonging to hufflepuff."""
         return 1 if house == "Hufflepuff" else -1
 
@@ -168,7 +169,7 @@ def main() -> None:
                           "Birthday", "Best Hand", "Astronomy", "Potions",
                           "Care of Magical Creatures"], axis="columns")
         SortingHat = SortingHatLogreg(data)
-        SortingHat.logreg_coefficients.to_csv("./datasets/logreg_coefs.csv",
+        SortingHat.logreg_coefficients.to_csv("../datasets/logreg_coefs.csv",
                                               index=False)
     except Exception as err:
         print(traceback.format_exc())
