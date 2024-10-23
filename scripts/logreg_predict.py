@@ -18,14 +18,14 @@ def pre_process_data(data: DataFrame, weights: DataFrame) -> tuple[list, list]:
         slyth = reindex(data.drop(["Transfiguration", "Charms", "Flying",
                                    "Muggle Studies", "History of Magic"],
                                   axis=1))
-        ws = [weights['S'][i] for i in range(len(slyth.columns))]
+        ws = [weights.at[i, 'S'] for i in range(len(slyth.columns))]
         gryff = reindex(data.drop(["Divination", "Muggle Studies", "Charms"],
                                   axis=1))
-        wg = [weights['G'][i] for i in range(len(gryff.columns))]
+        wg = [weights.at[i, 'G'] for i in range(len(gryff.columns))]
         huffl = reindex(data.drop(["Divination", "Muggle Studies",
                                    "History of Magic", "Transfiguration",
                                    "Flying"], axis=1))
-        wh = [weights['H'][i] for i in range(len(huffl.columns))]
+        wh = [weights.at[i, 'H'] for i in range(len(huffl.columns))]
     return ([raven, slyth, gryff, huffl], [wr, ws, wg, wh])
 
 
