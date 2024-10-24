@@ -1,5 +1,6 @@
 import sys
 import argparse
+import traceback
 from typing import Generator
 
 import pandas as pd
@@ -88,6 +89,8 @@ def main() -> None:
         data = pd.read_csv(av.data)
         data["Birthday"] = data["Birthday"].apply(lambda x: get_age(x))
         data = data.rename(columns={"Birthday": "Age"}).select_dtypes(float)
+        if "Hogwarts House" in data.columns:
+            data.drop("Hogwarts House", axis=1, inplace=True)
         pd.options.display.float_format = lambda x: f"{x:1g}"
 
         def statistics_generator() -> Generator:
@@ -98,6 +101,7 @@ def main() -> None:
         print(DataFrame(statistics_generator()).transpose())
     except Exception as err:
         print(f"{err.__class__.__name__}: {err}", file=sys.stderr)
+        print(traceback.format_exc())
 
 
 if __name__ == "__main__":

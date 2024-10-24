@@ -1,6 +1,7 @@
 import argparse
 import sys
 import traceback
+from typing import Generator
 
 import pandas as pd
 from pandas import DataFrame, Series
@@ -43,16 +44,22 @@ def data_mean(data: np.array) -> float:
     return np.sum(data) / len(data)
 
 
-def sorting_hat(i: int, stud: list[Series], weights: list[DataFrame]) -> int:
-    stud = [stud[0].loc[i], stud[1].loc[i], stud[2].loc[i], stud[3].loc[i]]
-    expected = stud[0][0]
-    for i in range(4):
-        stud[i] = stud[i].drop([0])
-    odds = [logistic(stud[i], weights[i]) for i in range(4)]
-    houses = ["Ravenclaw", "Slytherin", "Gryffindor", "Hufflepuff"]
-    predicted = houses[odds.index(np.max(odds))]
-    print(f"expected: {expected} -> {predicted}")
-    return 1 if predicted == expected else 0
+def sorting_hat(stud: list[DataFrame], weights: list[DataFrame]) -> Generator:
+    precision = 0
+    total = 0
+    for i in range(stud[0].shape[0]):
+        line = [stud[0].loc[i], stud[1].loc[i], stud[2].loc[i], stud[3].loc[i]]
+        expected = line[0][0]
+        total += 1 if expected == expected else 0
+        for i in range(4):
+            line[i] = line[i].drop([0])
+        odds = [logistic(line[i], weights[i]) for i in range(4)]
+        houses = ["Ravenclaw", "Slytherin", "Gryffindor", "Hufflepuff"]
+        predicted = houses[odds.index(np.max(odds))]
+        precision += 1 if predicted == expected else 0
+        yield predicted
+    if total != 0:
+        print(f"The sorting hat was {precision / total:.2%} right")
 
 
 def logistic(x: Series, weights: Series) -> float:
@@ -73,10 +80,9 @@ def main() -> None:
                           "Birthday", "Best Hand", "Astronomy", "Potions",
                           "Care of Magical Creatures"], axis="columns")
         (stud, weights) = pre_process_data(data, weights)
-        precision = 0
-        for i in range(data.shape[0]):
-            precision += sorting_hat(i, stud, weights)
-        print(f"The sorting hat was {precision / data.shape[0]:.2%} right")
+        out = DataFrame(sorting_hat(stud, weights), columns=["Hogwarts House"])
+        out.index.name = "Index"
+        out.to_csv("houses.csv")
     except Exception as err:
         print(traceback.format_exc())
         print(f"{err.__class__.__name__}: {err}", sys.stderr)
