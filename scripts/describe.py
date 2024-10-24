@@ -17,7 +17,6 @@ class Statistics:
 
     def __init__(self, data: Series) -> None:
         """Initializes each field with its processed value."""
-        #print(data)
         self.data = Statistics.quicksort([x for x in data if x == x])
         self.fields = {x: None for x in Statistics.field_names}
         self.fields["Count"] = len(self.data)
