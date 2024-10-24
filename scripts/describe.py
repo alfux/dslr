@@ -1,5 +1,6 @@
 import sys
 import argparse
+import traceback
 from typing import Generator
 
 import pandas as pd
@@ -16,6 +17,7 @@ class Statistics:
 
     def __init__(self, data: Series) -> None:
         """Initializes each field with its processed value."""
+        #print(data)
         self.data = Statistics.quicksort([x for x in data if x == x])
         self.fields = {x: None for x in Statistics.field_names}
         self.fields["Count"] = len(self.data)
@@ -88,8 +90,9 @@ def main() -> None:
         data = pd.read_csv(av.data)
         data["Birthday"] = data["Birthday"].apply(lambda x: get_age(x))
         data = data.rename(columns={"Birthday": "Age"}).select_dtypes(float)
+        if "Hogwarts House" in data.columns:
+            data.drop("Hogwarts House", axis=1, inplace = True)
         pd.options.display.float_format = lambda x: f"{x:1g}"
-
         def statistics_generator() -> Generator:
             """Generator of Series of Statistics for each columns in data."""
             for x in data.columns:
@@ -98,6 +101,7 @@ def main() -> None:
         print(DataFrame(statistics_generator()).transpose())
     except Exception as err:
         print(f"{err.__class__.__name__}: {err}", file=sys.stderr)
+        print(traceback.format_exc())
 
 
 if __name__ == "__main__":
