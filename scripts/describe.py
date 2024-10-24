@@ -90,8 +90,9 @@ def main() -> None:
         data["Birthday"] = data["Birthday"].apply(lambda x: get_age(x))
         data = data.rename(columns={"Birthday": "Age"}).select_dtypes(float)
         if "Hogwarts House" in data.columns:
-            data.drop("Hogwarts House", axis=1, inplace = True)
+            data.drop("Hogwarts House", axis=1, inplace=True)
         pd.options.display.float_format = lambda x: f"{x:1g}"
+
         def statistics_generator() -> Generator:
             """Generator of Series of Statistics for each columns in data."""
             for x in data.columns:
