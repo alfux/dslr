@@ -13,6 +13,8 @@ class SortingHatLogreg:
     def __init__(self: Self, data: pd.DataFrame, epsilon: float = 1e-2):
         """Starts a logistic regression for each house."""
         self._epsilon = epsilon
+        # self._pre_process_data(data).to_csv("PLOT.csv")
+        # quit()
         self._data = self._pre_process_data(data.drop(
             ["Divination", "History of Magic", "Transfiguration", "Flying"],
             axis=1))
@@ -42,21 +44,45 @@ class SortingHatLogreg:
         data = data.rename(index, axis=1)
         self._reduc_coef = [1] * data.shape[1]
         for i in range(1, data.shape[1]):
-            (mean, reduc) = self._compute_means(data[i])
-            data[i] = data[i].apply(lambda x: x / reduc if x == x else mean)
+            course = pd.DataFrame([data[0], data[i]], index=[0, 1]).transpose()
+            (mean, std, reduc) = self._compute_by_house(course)
+            for j in range(len(data[i])):
+                x = data.at[j, i] / reduc
+                house = data.at[j, 0]
+                if x != x or np.abs(x - mean[house]) > 2.5 * std[house]:
+                    data.drop(j, axis=0, inplace=True)
+                else:
+                    data.at[j, i] = x
+            data.reset_index(inplace=True, drop=True)
             self._reduc_coef[i] = reduc
-        return data
+        # print(data.shape)
+        return data#.rename({i: k for i, k in zip(index.values(), index.keys())}, axis=1)
 
-    def _compute_means(self: Self, data: pd.Series) -> tuple:
+    def _compute_by_house(self: Self, df: pd.DataFrame) -> tuple:
         """Computes data's mean and integer digits' mean."""
-        no_nan_data = [x for x in data if x == x]
-        (mean, reduc) = (0, 0)
-        for i in range(len(no_nan_data)):
-            reduc += self._count_digit(no_nan_data[i])
-            mean += no_nan_data[i]
-        reduc = 1 * 10 ** np.round(reduc / len(no_nan_data))
-        mean = mean / (len(no_nan_data) * reduc)
-        return (mean, reduc)
+        data = [(h, x) for (h, x) in zip(df[0], df[1]) if x == x]
+        rave = np.array([x[1] for x in data if x[0] == "Ravenclaw"])
+        slyt = np.array([x[1] for x in data if x[0] == "Slytherin"])
+        gryf = np.array([x[1] for x in data if x[0] == "Gryffindor"])
+        huff = np.array([x[1] for x in data if x[0] == "Hufflepuff"])
+        (mean_r, mean_s) = (np.sum(rave) / len(rave), np.sum(slyt) / len(slyt))
+        (mean_g, mean_h) = (np.sum(gryf) / len(gryf), np.sum(huff) / len(huff))
+        (var_r, var_s) = (self._std(rave, mean_r), self._std(slyt, mean_s))
+        (var_g, var_h) = (self._std(gryf, mean_g), self._std(huff, mean_h))
+        reduc = 0
+        for i in range(len(data)):
+            reduc += self._count_digit(data[i][1])
+        reduc = 10 ** np.round(reduc / len(data))
+        mean = {"Ravenclaw": mean_r / reduc, "Slytherin": mean_s / reduc,
+                "Gryffindor": mean_g / reduc, "Hufflepuff": mean_h / reduc}
+        std = {"Ravenclaw": var_r / reduc, "Slytherin": var_s / reduc,
+               "Gryffindor": var_g / reduc, "Hufflepuff": var_h / reduc}
+        return (mean, std, reduc)
+    
+    def _std(self: Self, array: np.array, mean: float):
+        """Computes unbiased standard deviation."""
+        return np.sqrt((np.sum(array ** 2) / len(array) - mean ** 2)
+                       * len(array) / (len(array) - 1))
 
     def _count_digit(self: Self, number: float) -> int:
         """Counts digits to the left of the dot."""
@@ -88,7 +114,7 @@ class SortingHatLogreg:
 
     def _learning_rate(self: Self, p: np.array, nabla: np.array) -> float:
         """Computes an approximate of the optimal learning rate."""
-
+        
         def d_dt(t: float) -> float:
             """Derivative of line search log-likelihood."""
             d_dt = 0
@@ -109,11 +135,9 @@ class SortingHatLogreg:
 
     def _bissection(self: Self, f: Callable) -> float:
         """Finds a zero from f by bissection method."""
-        (a, b, step, fa, fb) = (-1, 1, 1, f(-1), f(1))
-        while fa * fb > 0:
-            a -= step
-            b += step
-            (fa, fb) = (f(a), f(b))
+        (a, b, fa, fb) = (0, 1, f(0), f(1))
+        if fa * fb > 0:
+            return 1
         while (np.abs(fa) > self._epsilon and
                np.abs(fb) > self._epsilon):
             c = (a + b) / 2
@@ -161,12 +185,18 @@ class SortingHatLogreg:
 def main() -> None:
     """Trains a logistic regression model to mimic the Sorting Hat"""
     try:
-        parser = argparse.ArgumentParser(sys.argv[0], f"{sys.argv[0]} [file]")
-        parser.add_argument("file", help="csv file containing hogwarts data")
+        parser = argparse.ArgumentParser(
+            sys.argv[0], f"{sys.argv[0]} [file] [-s] [-m batch]")
+        parser.add_argument("-s", "--stochastic-gd", action="store_const",
+                            help="use stochastic gradient descent")
+        parser.add_argument("-m", "--mini-batch-gd",
+                            help="use mini-batch gradient descent")
+        parser.add_argument("file", help="csv file containing hogwarts datas")
         data = pd.read_csv(parser.parse_args().file)
+        # SortingHatLogreg(data.drop(["Index", "First Name", "Last Name", "Birthday", "Best Hand"], axis=1))
         data = data.drop(["Index", "First Name", "Last Name", "Arithmancy",
                           "Birthday", "Best Hand", "Astronomy", "Potions",
-                          "Care of Magical Creatures"], axis="columns")
+                          "Care of Magical Creatures"], axis=1)
         SortingHat = SortingHatLogreg(data)
         SortingHat.logreg_coefficients.to_csv("./datasets/logreg_coefs.csv",
                                               index=False)
