@@ -1,5 +1,6 @@
 import sys
 import argparse
+import warnings
 from typing import Self, Callable
 
 import numpy as np
@@ -12,13 +13,13 @@ class SortingHatLogreg:
     def __init__(self: Self, data: pd.DataFrame, **kwargs: dict):
         """Starts a logistic regression for each house."""
         if "epsilon" in kwargs and kwargs["epsilon"] is not None:
-            self._epsilon = float(kwargs["epsilon"])
+            self._epsilon = np.abs(float(kwargs["epsilon"]))
         else:
             self._epsilon = 1e-2
         print(f"Maximal gradient norm condition: {self._epsilon}")
         if "batch" in kwargs and kwargs["batch"] is not None:
             print("Training with size", end=' ')
-            self._batch = int(kwargs["batch"])
+            self._batch = np.abs(int(kwargs["batch"]))
             print(f"{self._batch} mini-batch gradient descent algorithm:")
             self._stochastic_algorithm(data)
         elif "sgd" in kwargs and kwargs["sgd"]:
@@ -153,15 +154,17 @@ class SortingHatLogreg:
         self._y = y
         p = np.array([0] * len(self._data.columns))
         (nabla, norm) = self._gradient(p)
+        batch = np.clip(self._batch, 0, self._data.shape[0])
         while norm > self._epsilon:
             print(f"\r{np.clip(self._epsilon / norm, 0, 1):.2%}", end="")
             self._data = self._data.sample(frac=1)
             self._data.reset_index(inplace=True, drop=True)
-            for i in range(self._data.shape[0] // self._batch):
-                (nabla, norm) = self._stochastic_grad(p, i)
-                if norm > 1:
+            for i in range(self._data.shape[0] // batch):
+                (nabla, norm) = self._stochastic_grad(p, i, batch)
+                if norm > 1 / batch:
                     nabla /= norm
-                p = p + self._stochastic_learning_rate(p, nabla, i) * nabla
+                p = p + self._stochastic_learning_rate(p, nabla, i,
+                                                       batch) * nabla
             (nabla, norm) = self._gradient(p)
         for i in range(len(p)):
             p[i] /= self._reduc_coef[i]
@@ -184,21 +187,21 @@ class SortingHatLogreg:
 
         return self._bissection(d_dt)
 
-    def _stochastic_learning_rate(
-            self: Self, p: np.array, nabla: np.array, line: int) -> float:
+    def _stochastic_learning_rate(self: Self, p: np.array, nabla: np.array,
+                                  line: int, batch: int) -> float:
         """Computes an approximate of the optimal stochastic learning rate."""
 
         def d_dt(t: float) -> float:
             """Derivative of line search stochastic log-likelihood."""
             d_dt = 0
-            for i in range(line, line + self._batch):
+            for i in range(line, line + batch):
                 xi = np.array(self._data.loc[i])
                 yi = self._y(xi[0])
                 xi[0] = 1
                 yi_nabla_xi = yi * np.dot(nabla, xi)
                 exposant = yi * np.dot(p, xi) + t * yi_nabla_xi
                 d_dt += yi_nabla_xi / (1 + np.exp(exposant))
-            return d_dt / self._data.shape[0]
+            return d_dt / batch
 
         return self._bissection(d_dt)
 
@@ -230,17 +233,18 @@ class SortingHatLogreg:
         grad /= self._data.shape[0]
         return (grad, np.linalg.norm(grad))
 
-    def _stochastic_grad(self: Self, p: np.array, line: int) -> tuple:
+    def _stochastic_grad(self: Self, p: np.array,
+                         line: int, batch: int) -> tuple:
         """Computes the gradient of the one-lined-log-likelihood in point p."""
         dim = self._data.shape[1]
         grad = np.array([0.0] * dim)
-        for i in range(line, line + self._batch):
+        for i in range(line, line + batch):
             xi = np.array(self._data.loc[i])
             yi = self._y(xi[0])
             xi[0] = 1
             p_xi = np.dot(p, xi)
             grad += [yi * xi[j] / (1 + np.exp(yi * p_xi)) for j in range(dim)]
-        grad /= self._batch
+        grad /= batch
         return (np.array(grad), np.linalg.norm(grad))
 
     def _observed_ravenclaw(self: Self, house: str) -> int:
@@ -263,6 +267,7 @@ class SortingHatLogreg:
 def main() -> None:
     """Trains a logistic regression model to mimic the Sorting Hat"""
     try:
+        warnings.filterwarnings(action="ignore")
         parser = argparse.ArgumentParser(
             sys.argv[0], f"{sys.argv[0]} [file] [-s] [-m batch]")
         parser.add_argument("file", help="csv file containing hogwarts datas")
