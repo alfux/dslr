@@ -81,14 +81,9 @@ class SortingHatLogreg:
             p[i] /= self._reduc_coef[i]
         return [p[i] if i < len(p) else 0 for i in range(14)]
 
-    def _stochastic_descent(self: any, y: Callable) -> np.array:
-        """Stochastic gradient descent to maximize log-likelihood."""
-        self._y = y
-        # p = np.array([0] * len(self._data.columns))
-
     def _learning_rate(self: any, p: np.array, nabla: np.array) -> float:
         """Computes an approximate of the optimal learning rate."""
-        return (1e-0)
+        return (1e-1)
 
         def d_dt(t: float) -> float:
             """Derivative of line search log-likelihood."""
@@ -103,10 +98,6 @@ class SortingHatLogreg:
             return d_dt / self._data.shape[0]
 
         return self._bissection(d_dt)
-
-    def _stochastic_learning_rate(self: any, y: Callable) -> float:
-        """Computes an approximate of the optimal stochastic learning rate."""
-        pass
 
     def _bissection(self: any, f: Callable) -> float:
         """Finds a zero from f by bissection method."""
@@ -137,10 +128,6 @@ class SortingHatLogreg:
             sum += [yi * xi[j] / (1 + np.exp(yi * p_xi)) for j in range(dim)]
         sum /= self._data.shape[0]
         return (sum, np.linalg.norm(sum))
-
-    def _stochastic_grad(self: any, p: np.array) -> tuple[np.array, float]:
-        """Computes the gradient of the one-lined-log-likelihood in point p."""
-        pass
 
     def _observed_ravenclaw(self: any, house: str) -> int:
         """Digital representation of the observed belonging to ravenclaw."""
