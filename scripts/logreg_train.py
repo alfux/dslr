@@ -34,6 +34,7 @@ class SortingHatLogreg:
         else:
             print("Training with basic (batch) gradient descent algorithm:")
             self._batch_algorithm(data)
+        plt.show()
 
     def _pre_process_data(self: Self, data: pd.DataFrame) -> pd.DataFrame:
         """Pre-processes datas for logistic regression."""
@@ -182,13 +183,17 @@ class SortingHatLogreg:
         self._y = y
         p = np.array([0.0] * len(self._data.columns))
         (nabla, norm) = self._gradient(p)
+        vis_grad = pd.Series(self._efficiency_display(p))
         while norm > self._epsilon:
             print(f"\r{np.clip(self._epsilon / norm, 0, 1):.2%}", end="")
             nabla /= norm
             p = p + self._learning_rate(p, nabla) * nabla
+            vis_grad = pd.concat([vis_grad, pd.Series(self._efficiency_display(p))],
+                                                      ignore_index=True)
             (nabla, norm) = self._gradient(p)
         for i in range(len(p)):
             p[i] /= self._reduc_coef[i]
+        vis_grad.plot()
         return [p[i] if i < len(p) else 0 for i in range(14)]
 
     def _learning_rate(self: Self, p: np.ndarray, nabla: np.ndarray) -> float:
@@ -252,9 +257,8 @@ class SortingHatLogreg:
         p = np.array([0.0] * len(self._data.columns))
         (nabla, norm) = self._gradient(p)
         batch = np.clip(self._batch, 0, self._data.shape[0])
-        vis_grad = pd.Series(nabla)
+        vis_grad = pd.Series(self._efficiency_display(p))
         while norm > self._epsilon:
-            vis_grad = pd.concat([vis_grad, pd.Series(abs(nabla))], ignore_index=True)
             print(f"\r{np.clip(self._epsilon / norm, 0, 1):.2%}", end="")
             self._data = self._data.sample(frac=1)
             self._data.reset_index(inplace=True, drop=True)
@@ -264,15 +268,12 @@ class SortingHatLogreg:
                     nabla /= norm
                 p = p + self._stochastic_learning_rate(p, nabla, i,
                                                        batch) * nabla
+                vis_grad = pd.concat([vis_grad, pd.Series(self._efficiency_display(p))],
+                                                          ignore_index=True)
             (nabla, norm) = self._gradient(p)
         for i in range(len(p)):
             p[i] /= self._reduc_coef[i]
-        pos_e = (vis_grad * 0) + self._epsilon
-        neg_e = (vis_grad * 0) - self._epsilon
         vis_grad.plot()
-        pos_e.plot()
-        neg_e.plot()
-        plt.show()
         return [p[i] if i < len(p) else 0 for i in range(14)]
 
     def _stochastic_learning_rate(self: Self, p: np.ndarray, nabla: np.ndarray,
@@ -323,7 +324,16 @@ class SortingHatLogreg:
         return a if np.abs(fa) < np.abs(fb) else b
 
     def _efficiency_display(self: Self, p: np.ndarray) -> float:
-        self._y = y
+        """Returns the value of log-likelihood in point p."""
+        value = 0
+        for i in range(self._data.shape[0]):
+            xi = np.array(self._data.loc[i])
+            yi = self._y(xi[0])
+            xi[0] = 1
+            p_xi = np.dot(p, xi)
+            value += np.log(1 + np.exp(-yi * p_xi))
+        value /= -self._data.shape[0]
+        return value
 
     def _observed_ravenclaw(self: Self, house: str) -> int:
         """Digital representation of the observed belonging to ravenclaw."""
