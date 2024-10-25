@@ -1,7 +1,6 @@
 import sys
 import argparse
 import warnings
-import traceback
 from typing import Self, Callable
 
 import numpy as np
@@ -88,6 +87,69 @@ class SortingHatLogreg:
             i += 1
         return i
 
+    def _newton_raphson_algorithm(self: Self, data: pd.DataFrame) -> None:
+        """Trains the model with the Newton-Raphson method on gradient."""
+        self._data = self._pre_process_data(data.drop(
+            ["Divination", "History of Magic", "Transfiguration", "Flying"],
+            axis=1))
+        self._rave = self._newton_raphson(self._observed_ravenclaw)
+        print("\rRavenclaw: complete !")
+        self._data = self._pre_process_data(data.drop(
+            ["Transfiguration", "Charms", "Flying", "Muggle Studies",
+             "History of Magic"], axis=1))
+        self._slyt = self._newton_raphson(self._observed_slytherin)
+        print("\rSlytherin: complete !")
+        self._data = self._pre_process_data(data.drop(
+            ["Divination", "Muggle Studies", "Charms"], axis=1))
+        self._gryf = self._newton_raphson(self._observed_gryfindor)
+        print("\rGryffindor: complete !")
+        self._data = self._pre_process_data(data.drop(
+            ["Divination", "Muggle Studies", "History of Magic",
+             "Transfiguration", "Flying"], axis=1))
+        self._huff = self._newton_raphson(self._observed_hufflepuff)
+        print("\rHufflepuff: complete !")
+        self.logreg_coef = pd.DataFrame(
+            {"R": self._rave, "S": self._slyt,
+             "G": self._gryf, "H": self._huff})
+
+    def _newton_raphson(self: Self, y: Callable) -> np.ndarray:
+        """Newton-Raphson method to find a zero of the gradient."""
+        self._y = y
+        p = np.array([1.0] * len(self._data.columns))
+        (nabla, norm) = self._gradient(p)
+        while norm > self._epsilon:
+            print(f"\r{np.clip(self._epsilon / norm, 0, 1):.2%}", end="")
+            reverse_hessian = self._reversed_hessian(p)
+            if reverse_hessian is None:
+                print("Couldn't proceed with the Newton-Raphson algorithm")
+                quit()
+            prev = p
+            p = 0.1 * np.array((reverse_hessian @ (-nabla)).flat)
+            if np.linalg.norm(p - prev) < self._epsilon:
+                break
+            (nabla, norm) = self._gradient(p)
+        for i in range(len(p)):
+            p[i] /= self._reduc_coef[i]
+        return [p[i] if i < len(p) else 0 for i in range(14)]
+
+    def _reversed_hessian(self: Self, p: np.ndarray) -> np.ndarray:
+        """Computes the reversed hessian of the log-likelihood in point p."""
+        hess = np.matrix([[0.0] * len(p)] * len(p))
+        for i in range(self._data.shape[0]):
+            xi = np.array(self._data.loc[i])
+            xi[0] = 1
+            p_xi = np.dot(p, xi)
+            quotient = (1 + np.exp(p_xi)) * (1 + np.exp(-p_xi))
+            for j in range(len(p)):
+                for k in range(len(p)):
+                    hess[j, k] = hess[j, k] - xi[j] * xi[k] / quotient
+        hess = hess / self._data.shape[0]
+        try:
+            return hess.I
+        except Exception as err:
+            print(f"\rHess: {err.__class__.__name__}: {err}", file=sys.stderr)
+            return None
+
     def _batch_algorithm(self: Self, data: pd.DataFrame) -> None:
         """Trains the model with the basic (batch) gradient descent."""
         self._data = self._pre_process_data(data.drop(
@@ -112,6 +174,50 @@ class SortingHatLogreg:
         self.logreg_coef = pd.DataFrame(
             {"R": self._rave, "S": self._slyt,
              "G": self._gryf, "H": self._huff})
+
+    def _descent(self: Self, y: Callable) -> np.ndarray:
+        """Batch gradient descent to maximize log-likelihood."""
+        self._y = y
+        p = np.array([0.0] * len(self._data.columns))
+        (nabla, norm) = self._gradient(p)
+        while norm > self._epsilon:
+            print(f"\r{np.clip(self._epsilon / norm, 0, 1):.2%}", end="")
+            nabla /= norm
+            p = p + self._learning_rate(p, nabla) * nabla
+            (nabla, norm) = self._gradient(p)
+        for i in range(len(p)):
+            p[i] /= self._reduc_coef[i]
+        return [p[i] if i < len(p) else 0 for i in range(14)]
+
+    def _learning_rate(self: Self, p: np.ndarray, nabla: np.ndarray) -> float:
+        """Computes an approximate of the optimal learning rate."""
+
+        def d_dt(t: float) -> float:
+            """Derivative of line search log-likelihood."""
+            d_dt = 0
+            for i in range(self._data.shape[0]):
+                xi = np.array(self._data.loc[i])
+                yi = self._y(xi[0])
+                xi[0] = 1
+                yi_nabla_xi = yi * np.dot(nabla, xi)
+                exposant = yi * np.dot(p, xi) + t * yi_nabla_xi
+                d_dt += yi_nabla_xi / (1 + np.exp(exposant))
+            return d_dt / self._data.shape[0]
+
+        return self._bissection(d_dt)
+
+    def _gradient(self: Self, p: np.ndarray) -> tuple:
+        """Computes the gradient of the log-likelihood in point p."""
+        dim = self._data.shape[1]
+        grad = np.array([0.0] * dim)
+        for i in range(self._data.shape[0]):
+            xi = np.array(self._data.loc[i])
+            yi = self._y(xi[0])
+            xi[0] = 1
+            p_xi = np.dot(p, xi)
+            grad += [yi * xi[j] / (1 + np.exp(yi * p_xi)) for j in range(dim)]
+        grad /= self._data.shape[0]
+        return (grad, np.linalg.norm(grad))
 
     def _stochastic_algorithm(self: Self, data: pd.DataFrame) -> None:
         """Trains the model with the stochastic gradient descent."""
@@ -138,45 +244,6 @@ class SortingHatLogreg:
             {"R": self._rave, "S": self._slyt,
              "G": self._gryf, "H": self._huff})
 
-    def _newton_raphson_algorithm(self: Self, data: pd.DataFrame) -> None:
-        """Trains the model with the Newton-Raphson method on gradient."""
-        self._data = self._pre_process_data(data.drop(
-            ["Divination", "History of Magic", "Transfiguration", "Flying"],
-            axis=1))
-        self._rave = self._newton_raphson(self._observed_ravenclaw)
-        print("\rRavenclaw: complete !")
-        self._data = self._pre_process_data(data.drop(
-            ["Transfiguration", "Charms", "Flying", "Muggle Studies",
-             "History of Magic"], axis=1))
-        self._slyt = self._newton_raphson(self._observed_slytherin)
-        print("\rSlytherin: complete !")
-        self._data = self._pre_process_data(data.drop(
-            ["Divination", "Muggle Studies", "Charms"], axis=1))
-        self._gryf = self._newton_raphson(self._observed_gryfindor)
-        print("\rGryffindor: complete !")
-        self._data = self._pre_process_data(data.drop(
-            ["Divination", "Muggle Studies", "History of Magic",
-             "Transfiguration", "Flying"], axis=1))
-        self._huff = self._newton_raphson(self._observed_hufflepuff)
-        print("\rHufflepuff: complete !")
-        self.logreg_coef = pd.DataFrame(
-            {"R": self._rave, "S": self._slyt,
-             "G": self._gryf, "H": self._huff})
-
-    def _descent(self: Self, y: Callable) -> np.ndarray:
-        """Batch gradient descent to maximize log-likelihood."""
-        self._y = y
-        p = np.array([0.0] * len(self._data.columns))
-        (nabla, norm) = self._gradient(p)
-        while norm > self._epsilon:
-            print(f"\r{np.clip(self._epsilon / norm, 0, 1):.2%}", end="")
-            nabla /= norm
-            p = p + self._learning_rate(p, nabla) * nabla
-            (nabla, norm) = self._gradient(p)
-        for i in range(len(p)):
-            p[i] /= self._reduc_coef[i]
-        return [p[i] if i < len(p) else 0 for i in range(14)]
-
     def _stochastic_descent(self: Self, y: Callable) -> np.ndarray:
         """Stochastic gradient descent to maximize log-likelihood."""
         self._y = y
@@ -198,43 +265,6 @@ class SortingHatLogreg:
             p[i] /= self._reduc_coef[i]
         return [p[i] if i < len(p) else 0 for i in range(14)]
 
-    def _newton_raphson(self: Self, y: Callable) -> np.ndarray:
-        """Newton-Raphson method to find a zero of the gradient."""
-        self._y = y
-        p = np.array([1.0] * len(self._data.columns))
-        (nabla, norm) = self._gradient(p)
-        while norm > self._epsilon:
-            print(f"\r{np.clip(self._epsilon / norm, 0, 1):.2%}", end="")
-            reverse_hessian = self._reversed_hessian(p)
-            if reverse_hessian is None:
-                print("Couldn't proceed with the Newton-Raphson algorithm")
-                quit()
-            prev = p
-            p = 0.1 * np.array((reverse_hessian @ (-nabla)).flat)
-            if np.linalg.norm(p - prev) < self._epsilon:
-                break
-            (nabla, norm) = self._gradient(p)
-        for i in range(len(p)):
-            p[i] /= self._reduc_coef[i]
-        return [p[i] if i < len(p) else 0 for i in range(14)]
-
-    def _learning_rate(self: Self, p: np.ndarray, nabla: np.ndarray) -> float:
-        """Computes an approximate of the optimal learning rate."""
-
-        def d_dt(t: float) -> float:
-            """Derivative of line search log-likelihood."""
-            d_dt = 0
-            for i in range(self._data.shape[0]):
-                xi = np.array(self._data.loc[i])
-                yi = self._y(xi[0])
-                xi[0] = 1
-                yi_nabla_xi = yi * np.dot(nabla, xi)
-                exposant = yi * np.dot(p, xi) + t * yi_nabla_xi
-                d_dt += yi_nabla_xi / (1 + np.exp(exposant))
-            return d_dt / self._data.shape[0]
-
-        return self._bissection(d_dt)
-
     def _stochastic_learning_rate(self: Self, p: np.ndarray, nabla: np.ndarray,
                                   line: int, batch: int) -> float:
         """Computes an approximate of the optimal stochastic learning rate."""
@@ -253,34 +283,6 @@ class SortingHatLogreg:
 
         return self._bissection(d_dt)
 
-    def _bissection(self: Self, f: Callable) -> float:
-        """Finds a zero from f by bissection method."""
-        (a, b, fa, fb) = (0, 1, f(0), f(1))
-        if fa * fb > 0:
-            return 1
-        while (np.abs(fa) > self._epsilon and
-               np.abs(fb) > self._epsilon):
-            c = (a + b) / 2
-            fc = f(c)
-            if np.sign(fa) * np.sign(fc) > 0:
-                (a, fa) = (c, fc)
-            else:
-                (b, fb) = (c, fc)
-        return a if np.abs(fa) < np.abs(fb) else b
-
-    def _gradient(self: Self, p: np.ndarray) -> tuple:
-        """Computes the gradient of the log-likelihood in point p."""
-        dim = self._data.shape[1]
-        grad = np.array([0.0] * dim)
-        for i in range(self._data.shape[0]):
-            xi = np.array(self._data.loc[i])
-            yi = self._y(xi[0])
-            xi[0] = 1
-            p_xi = np.dot(p, xi)
-            grad += [yi * xi[j] / (1 + np.exp(yi * p_xi)) for j in range(dim)]
-        grad /= self._data.shape[0]
-        return (grad, np.linalg.norm(grad))
-
     def _stochastic_grad(self: Self, p: np.ndarray,
                          line: int, batch: int) -> tuple:
         """Computes the gradient of the one-lined-log-likelihood in point p."""
@@ -295,23 +297,20 @@ class SortingHatLogreg:
         grad /= batch
         return (np.array(grad), np.linalg.norm(grad))
 
-    def _reversed_hessian(self: Self, p: np.ndarray) -> np.ndarray:
-        """Computes the reversed hessian of the log-likelihood in point p."""
-        hess = np.matrix([[0.0] * len(p)] * len(p))
-        for i in range(self._data.shape[0]):
-            xi = np.array(self._data.loc[i])
-            xi[0] = 1
-            p_xi = np.dot(p, xi)
-            quotient = (1 + np.exp(p_xi)) * (1 + np.exp(-p_xi))
-            for j in range(len(p)):
-                for k in range(len(p)):
-                    hess[j, k] = hess[j, k] - xi[j] * xi[k] / quotient
-        hess = hess / self._data.shape[0]
-        try:
-            return hess.I
-        except Exception as err:
-            print(f"\rHess: {err.__class__.__name__}: {err}", file=sys.stderr)
-            return None
+    def _bissection(self: Self, f: Callable) -> float:
+        """Finds a zero from f by bissection method."""
+        (a, b, fa, fb) = (0, 1, f(0), f(1))
+        if fa * fb > 0:
+            return 1
+        while (np.abs(fa) > self._epsilon and
+               np.abs(fb) > self._epsilon):
+            c = (a + b) / 2
+            fc = f(c)
+            if np.sign(fa) * np.sign(fc) > 0:
+                (a, fa) = (c, fc)
+            else:
+                (b, fb) = (c, fc)
+        return a if np.abs(fa) < np.abs(fb) else b
 
     def _observed_ravenclaw(self: Self, house: str) -> int:
         """Digital representation of the observed belonging to ravenclaw."""
@@ -355,7 +354,6 @@ def main() -> None:
             nr=parser.parse_args().newton_raphson)
         SortingHat.logreg_coef.to_csv("./logreg_coef.csv", index=False)
     except Exception as err:
-        print(traceback.format_exc())
         print(f"{err.__class__.__name__}: {err}", sys.stderr)
 
 
