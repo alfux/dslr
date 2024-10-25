@@ -18,6 +18,10 @@ class SortingHatLogreg:
             self._epsilon = np.abs(float(kwargs["epsilon"]))
         else:
             self._epsilon = 1e-2
+        if "display" in kwargs:
+            self._display = kwargs["display"]
+        else:
+            self._display = False
         print(f"Maximal gradient norm condition: {self._epsilon}")
         if "nr" in kwargs and kwargs["nr"]:
             print("Training with Newton-Raphson algorithm:")
@@ -120,6 +124,8 @@ class SortingHatLogreg:
         self._y = y
         p = np.array([1.0] * len(self._data.columns))
         (nabla, norm) = self._gradient(p)
+        if self._display:
+            vis_grad = pd.Series(self._efficiency_display(p))
         while norm > self._epsilon:
             print(f"\r{np.clip(self._epsilon / norm, 0, 1):.2%}", end="")
             reverse_hessian = self._reversed_hessian(p)
@@ -128,11 +134,17 @@ class SortingHatLogreg:
                 quit()
             prev = p
             p = 0.1 * np.array((reverse_hessian @ (-nabla)).flat)
+            if self._display:
+                vis_grad = pd.concat([vis_grad,
+                         pd.Series(self._efficiency_display(p))],
+                         ignore_index=True)
             if np.linalg.norm(p - prev) < self._epsilon:
                 break
             (nabla, norm) = self._gradient(p)
         for i in range(len(p)):
             p[i] /= self._reduc_coef[i]
+        if self._display:
+            vis_grad.plot()
         return [p[i] if i < len(p) else 0 for i in range(14)]
 
     def _reversed_hessian(self: Self, p: np.ndarray) -> np.ndarray:
@@ -183,17 +195,21 @@ class SortingHatLogreg:
         self._y = y
         p = np.array([0.0] * len(self._data.columns))
         (nabla, norm) = self._gradient(p)
-        vis_grad = pd.Series(self._efficiency_display(p))
+        if self._display:
+            vis_grad = pd.Series(self._efficiency_display(p))
         while norm > self._epsilon:
             print(f"\r{np.clip(self._epsilon / norm, 0, 1):.2%}", end="")
             nabla /= norm
             p = p + self._learning_rate(p, nabla) * nabla
-            vis_grad = pd.concat([vis_grad, pd.Series(self._efficiency_display(p))],
-                                                      ignore_index=True)
+            if self._display:
+                vis_grad = pd.concat([vis_grad,
+                                     pd.Series(self._efficiency_display(p))],
+                                     ignore_index=True)
             (nabla, norm) = self._gradient(p)
         for i in range(len(p)):
             p[i] /= self._reduc_coef[i]
-        vis_grad.plot()
+        if self._display:
+            vis_grad.plot()
         return [p[i] if i < len(p) else 0 for i in range(14)]
 
     def _learning_rate(self: Self, p: np.ndarray, nabla: np.ndarray) -> float:
@@ -257,7 +273,8 @@ class SortingHatLogreg:
         p = np.array([0.0] * len(self._data.columns))
         (nabla, norm) = self._gradient(p)
         batch = np.clip(self._batch, 0, self._data.shape[0])
-        vis_grad = pd.Series(self._efficiency_display(p))
+        if self.display:
+            vis_grad = pd.Series(self._efficiency_display(p))
         while norm > self._epsilon:
             print(f"\r{np.clip(self._epsilon / norm, 0, 1):.2%}", end="")
             self._data = self._data.sample(frac=1)
@@ -268,12 +285,15 @@ class SortingHatLogreg:
                     nabla /= norm
                 p = p + self._stochastic_learning_rate(p, nabla, i,
                                                        batch) * nabla
-                vis_grad = pd.concat([vis_grad, pd.Series(self._efficiency_display(p))],
-                                                          ignore_index=True)
+                if self._display:
+                    vis_grad = pd.concat([vis_grad,
+                                         pd.Series(self._efficiency_display(p))],
+                                         ignore_index=True)
             (nabla, norm) = self._gradient(p)
         for i in range(len(p)):
             p[i] /= self._reduc_coef[i]
-        vis_grad.plot()
+        if self._display:
+            vis_grad.plot()
         return [p[i] if i < len(p) else 0 for i in range(14)]
 
     def _stochastic_learning_rate(self: Self, p: np.ndarray, nabla: np.ndarray,
@@ -374,7 +394,7 @@ def main() -> None:
             data, epsilon=parser.parse_args().epsilon,
             batch=parser.parse_args().mini_batch_gd,
             sgd=parser.parse_args().stochastic_gd,
-            nr=parser.parse_args().newton_raphson)
+            nr=parser.parse_args().newton_raphson, display=True)
         SortingHat.logreg_coef.to_csv("./logreg_coef.csv", index=False)
     except Exception as err:
         print(f"{err.__class__.__name__}: {err}", sys.stderr)
