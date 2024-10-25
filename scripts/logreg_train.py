@@ -273,7 +273,7 @@ class SortingHatLogreg:
         p = np.array([0.0] * len(self._data.columns))
         (nabla, norm) = self._gradient(p)
         batch = np.clip(self._batch, 0, self._data.shape[0])
-        if self.display:
+        if self._display:
             vis_grad = pd.Series(self._efficiency_display(p))
         while norm > self._epsilon:
             print(f"\r{np.clip(self._epsilon / norm, 0, 1):.2%}", end="")
