@@ -1,10 +1,12 @@
 import sys
 import argparse
 import warnings
-from typing import Self, Callable
+from typing import Callable
+from typing_extensions import Self
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 class SortingHatLogreg:
@@ -250,7 +252,9 @@ class SortingHatLogreg:
         p = np.array([0.0] * len(self._data.columns))
         (nabla, norm) = self._gradient(p)
         batch = np.clip(self._batch, 0, self._data.shape[0])
+        vis_grad = pd.Series(nabla)
         while norm > self._epsilon:
+            vis_grad = pd.concat([vis_grad, pd.Series(abs(nabla))], ignore_index=True)
             print(f"\r{np.clip(self._epsilon / norm, 0, 1):.2%}", end="")
             self._data = self._data.sample(frac=1)
             self._data.reset_index(inplace=True, drop=True)
@@ -263,6 +267,12 @@ class SortingHatLogreg:
             (nabla, norm) = self._gradient(p)
         for i in range(len(p)):
             p[i] /= self._reduc_coef[i]
+        pos_e = (vis_grad * 0) + self._epsilon
+        neg_e = (vis_grad * 0) - self._epsilon
+        vis_grad.plot()
+        pos_e.plot()
+        neg_e.plot()
+        plt.show()
         return [p[i] if i < len(p) else 0 for i in range(14)]
 
     def _stochastic_learning_rate(self: Self, p: np.ndarray, nabla: np.ndarray,
@@ -311,6 +321,9 @@ class SortingHatLogreg:
             else:
                 (b, fb) = (c, fc)
         return a if np.abs(fa) < np.abs(fb) else b
+
+    def _efficiency_display(self: Self, p: np.ndarray) -> float:
+        self._y = y
 
     def _observed_ravenclaw(self: Self, house: str) -> int:
         """Digital representation of the observed belonging to ravenclaw."""
