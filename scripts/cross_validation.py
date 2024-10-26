@@ -50,7 +50,7 @@ def main() -> None:
         kwargs = {"epsilon": parser.parse_args().epsilon,
                   "batch": parser.parse_args().mini_batch_gd,
                   "sgd": parser.parse_args().stochastic_gd,
-                  "ng": parser.parse_args().newton_raphson}
+                  "nr": parser.parse_args().newton_raphson}
         precision = compute_precision(samples, **kwargs)
         print(f"Overall model's precision is {precision:.2%}")
     except Exception as err:
