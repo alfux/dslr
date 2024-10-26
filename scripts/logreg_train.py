@@ -48,7 +48,7 @@ class SortingHatLogreg:
             for j in range(len(data[i])):
                 x = data.at[j, i] / reduc
                 house = data.at[j, 0]
-                if x != x or np.abs(x - mean[house]) > 2.5 * std[house]:
+                if x != x or np.abs(x - mean[house]) > 2 * std[house]:
                     data.drop(j, axis=0, inplace=True)
                 else:
                     data.at[j, i] = x
@@ -353,7 +353,7 @@ def main() -> None:
             batch=parser.parse_args().mini_batch_gd,
             sgd=parser.parse_args().stochastic_gd,
             nr=parser.parse_args().newton_raphson)
-        SortingHat.logreg_coef.to_csv("logreg_coef.csv", index=False)
+        SortingHat.logreg_coef.to_csv("logreg_coefs.csv", index=False)
     except Exception as err:
         print(f"{err.__class__.__name__}: {err}", file=sys.stderr)
 
