@@ -1,17 +1,21 @@
+import argparse as arg
 import sys
-import argparse
-import warnings
 from typing import Self, Callable
+import warnings
 
 import numpy as np
 import pandas as pd
+from pandas import DataFrame
 
 
 class SortingHatLogreg:
     """Computes the sorting hat coefficient by logistic regression."""
 
-    def __init__(self: Self, data: pd.DataFrame, **kwargs: dict):
+    def __init__(self: Self, data: DataFrame, **kwargs: dict) -> None:
         """Starts a logistic regression for each house."""
+        data = data.drop(["Index", "First Name", "Last Name", "Arithmancy",
+                          "Birthday", "Best Hand", "Astronomy", "Potions",
+                          "Care of Magical Creatures"], axis=1)
         if "epsilon" in kwargs and kwargs["epsilon"] is not None:
             self._epsilon = np.abs(float(kwargs["epsilon"]))
         else:
@@ -33,13 +37,13 @@ class SortingHatLogreg:
             print("Training with basic (batch) gradient descent algorithm:")
             self._batch_algorithm(data)
 
-    def _pre_process_data(self: Self, data: pd.DataFrame) -> pd.DataFrame:
+    def _pre_process(self: Self, data: DataFrame) -> DataFrame:
         """Pre-processes datas for logistic regression."""
         index = {k: i for (k, i) in zip(data.columns, range(data.shape[1]))}
         data = data.rename(index, axis=1)
         self._reduc_coef = [1] * data.shape[1]
         for i in range(1, data.shape[1]):
-            course = pd.DataFrame([data[0], data[i]], index=[0, 1]).transpose()
+            course = DataFrame([data[0], data[i]], index=[0, 1]).transpose()
             (mean, std, reduc) = self._compute_by_house(course)
             for j in range(len(data[i])):
                 x = data.at[j, i] / reduc
@@ -52,7 +56,7 @@ class SortingHatLogreg:
             self._reduc_coef[i] = reduc
         return data
 
-    def _compute_by_house(self: Self, df: pd.DataFrame) -> tuple:
+    def _compute_by_house(self: Self, df: DataFrame) -> tuple:
         """Computes data's mean and integer digits' mean."""
         data = [(h, x) for (h, x) in zip(df[0], df[1]) if x == x]
         rave = np.array([x[1] for x in data if x[0] == "Ravenclaw"])
@@ -87,28 +91,28 @@ class SortingHatLogreg:
             i += 1
         return i
 
-    def _newton_raphson_algorithm(self: Self, data: pd.DataFrame) -> None:
+    def _newton_raphson_algorithm(self: Self, data: DataFrame) -> None:
         """Trains the model with the Newton-Raphson method on gradient."""
-        self._data = self._pre_process_data(data.drop(
+        self._data = self._pre_process(data.drop(
             ["Divination", "History of Magic", "Transfiguration", "Flying"],
             axis=1))
         self._rave = self._newton_raphson(self._observed_ravenclaw)
         print("\rRavenclaw: complete !")
-        self._data = self._pre_process_data(data.drop(
+        self._data = self._pre_process(data.drop(
             ["Transfiguration", "Charms", "Flying", "Muggle Studies",
              "History of Magic"], axis=1))
         self._slyt = self._newton_raphson(self._observed_slytherin)
         print("\rSlytherin: complete !")
-        self._data = self._pre_process_data(data.drop(
+        self._data = self._pre_process(data.drop(
             ["Divination", "Muggle Studies", "Charms"], axis=1))
         self._gryf = self._newton_raphson(self._observed_gryfindor)
         print("\rGryffindor: complete !")
-        self._data = self._pre_process_data(data.drop(
+        self._data = self._pre_process(data.drop(
             ["Divination", "Muggle Studies", "History of Magic",
              "Transfiguration", "Flying"], axis=1))
         self._huff = self._newton_raphson(self._observed_hufflepuff)
         print("\rHufflepuff: complete !")
-        self.logreg_coef = pd.DataFrame(
+        self.logreg_coef = DataFrame(
             {"R": self._rave, "S": self._slyt,
              "G": self._gryf, "H": self._huff})
 
@@ -150,28 +154,28 @@ class SortingHatLogreg:
             print(f"\rHess: {err.__class__.__name__}: {err}", file=sys.stderr)
             return None
 
-    def _batch_algorithm(self: Self, data: pd.DataFrame) -> None:
+    def _batch_algorithm(self: Self, data: DataFrame) -> None:
         """Trains the model with the basic (batch) gradient descent."""
-        self._data = self._pre_process_data(data.drop(
+        self._data = self._pre_process(data.drop(
             ["Divination", "History of Magic", "Transfiguration", "Flying"],
             axis=1))
         self._rave = self._descent(self._observed_ravenclaw)
         print("\rRavenclaw: complete !")
-        self._data = self._pre_process_data(data.drop(
+        self._data = self._pre_process(data.drop(
             ["Transfiguration", "Charms", "Flying", "Muggle Studies",
              "History of Magic"], axis=1))
         self._slyt = self._descent(self._observed_slytherin)
         print("\rSlytherin: complete !")
-        self._data = self._pre_process_data(data.drop(
+        self._data = self._pre_process(data.drop(
             ["Divination", "Muggle Studies", "Charms"], axis=1))
         self._gryf = self._descent(self._observed_gryfindor)
         print("\rGryffindor: complete !")
-        self._data = self._pre_process_data(data.drop(
+        self._data = self._pre_process(data.drop(
             ["Divination", "Muggle Studies", "History of Magic",
              "Transfiguration", "Flying"], axis=1))
         self._huff = self._descent(self._observed_hufflepuff)
         print("\rHufflepuff: complete !")
-        self.logreg_coef = pd.DataFrame(
+        self.logreg_coef = DataFrame(
             {"R": self._rave, "S": self._slyt,
              "G": self._gryf, "H": self._huff})
 
@@ -219,28 +223,28 @@ class SortingHatLogreg:
         grad /= self._data.shape[0]
         return (grad, np.linalg.norm(grad))
 
-    def _stochastic_algorithm(self: Self, data: pd.DataFrame) -> None:
+    def _stochastic_algorithm(self: Self, data: DataFrame) -> None:
         """Trains the model with the stochastic gradient descent."""
-        self._data = self._pre_process_data(data.drop(
+        self._data = self._pre_process(data.drop(
             ["Divination", "History of Magic", "Transfiguration", "Flying"],
             axis=1))
         self._rave = self._stochastic_descent(self._observed_ravenclaw)
         print("\rRavenclaw: complete !")
-        self._data = self._pre_process_data(data.drop(
+        self._data = self._pre_process(data.drop(
             ["Transfiguration", "Charms", "Flying", "Muggle Studies",
              "History of Magic"], axis=1))
         self._slyt = self._stochastic_descent(self._observed_slytherin)
         print("\rSlytherin: complete !")
-        self._data = self._pre_process_data(data.drop(
+        self._data = self._pre_process(data.drop(
             ["Divination", "Muggle Studies", "Charms"], axis=1))
         self._gryf = self._stochastic_descent(self._observed_gryfindor)
         print("\rGryffindor: complete !")
-        self._data = self._pre_process_data(data.drop(
+        self._data = self._pre_process(data.drop(
             ["Divination", "Muggle Studies", "History of Magic",
              "Transfiguration", "Flying"], axis=1))
         self._huff = self._stochastic_descent(self._observed_hufflepuff)
         print("\rHufflepuff: complete !")
-        self.logreg_coef = pd.DataFrame(
+        self.logreg_coef = DataFrame(
             {"R": self._rave, "S": self._slyt,
              "G": self._gryf, "H": self._huff})
 
@@ -333,8 +337,8 @@ def main() -> None:
     """Trains a logistic regression model to mimic the Sorting Hat"""
     try:
         warnings.filterwarnings(action="ignore")
-        parser = argparse.ArgumentParser(
-            sys.argv[0], f"{sys.argv[0]} [file] [-ns] [-m batch] [-e prec]")
+        parser = arg.ArgumentParser(
+            sys.argv[0], f"{sys.argv[0]} [file] [-ns] [-m size] [-e prec]")
         parser.add_argument("file", help="csv file containing hogwarts datas")
         parser.add_argument("-s", "--stochastic-gd", action="store_true",
                             help="use stochastic gradient descent", )
@@ -344,17 +348,14 @@ def main() -> None:
         parser.add_argument("-n", "--newton-raphson", action="store_true",
                             help="use newton-raphson algorithm")
         data = pd.read_csv(parser.parse_args().file)
-        data = data.drop(["Index", "First Name", "Last Name", "Arithmancy",
-                          "Birthday", "Best Hand", "Astronomy", "Potions",
-                          "Care of Magical Creatures"], axis=1)
         SortingHat = SortingHatLogreg(
             data, epsilon=parser.parse_args().epsilon,
             batch=parser.parse_args().mini_batch_gd,
             sgd=parser.parse_args().stochastic_gd,
             nr=parser.parse_args().newton_raphson)
-        SortingHat.logreg_coef.to_csv("./logreg_coef.csv", index=False)
+        SortingHat.logreg_coef.to_csv("logreg_coef.csv", index=False)
     except Exception as err:
-        print(f"{err.__class__.__name__}: {err}", sys.stderr)
+        print(f"{err.__class__.__name__}: {err}", file=sys.stderr)
 
 
 if __name__ == "__main__":

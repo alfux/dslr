@@ -1,4 +1,5 @@
 venv
+sub
 *__pycache__
 *houses.csv
 *logreg_coefs.csv
