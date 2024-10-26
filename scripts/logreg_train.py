@@ -334,7 +334,7 @@ def main() -> None:
     try:
         warnings.filterwarnings(action="ignore")
         parser = argparse.ArgumentParser(
-            sys.argv[0], f"{sys.argv[0]} [file] [-s] [-m batch]")
+            sys.argv[0], f"{sys.argv[0]} [file] [-ns] [-m batch] [-e prec]")
         parser.add_argument("file", help="csv file containing hogwarts datas")
         parser.add_argument("-s", "--stochastic-gd", action="store_true",
                             help="use stochastic gradient descent", )
