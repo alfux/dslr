@@ -9,6 +9,7 @@ import pandas as pd
 def split_sample(sample: pd.DataFrame, n: int) -> list[pd.DataFrame]:
     """Split a sample into n sub samples."""
     sample = sample.sample(frac=1).reset_index(drop=True)
+    n = n if n != 0 else 1
     size = sample.shape[0] // n
 
     def sample_generator() -> Generator[pd.DataFrame]:

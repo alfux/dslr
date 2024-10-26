@@ -2,6 +2,7 @@ import argparse as arg
 import sys
 import warnings
 
+import numpy as np
 import pandas as pd
 from pandas import DataFrame
 
@@ -16,9 +17,11 @@ def compute_precision(samples: list[DataFrame], **kwargs: dict) -> float:
     for i in range(len(samples)):
         print(f"----------Iteration-{i}----------", end="\n\n")
         training_set = [samples[j] for j in range(len(samples)) if j != i]
-        if len(training_set) > 1:
+        if len(training_set) > 0:
             training_set = pd.concat(training_set)
             training_set.reset_index(inplace=True, drop=True)
+        else:
+            training_set = samples[i]
         predict_set = samples[i]
         training = SortingHatLogreg(training_set, **kwargs)
         predict = SortingHat(predict_set, training.logreg_coef)
@@ -43,7 +46,7 @@ def main() -> None:
         parser.add_argument("-n", "--newton-raphson", action="store_true",
                             help="use newton-raphson algorithm")
         samples = split_sample(pd.read_csv(parser.parse_args().file),
-                               int(parser.parse_args().N))
+                               np.abs(int(parser.parse_args().N)))
         kwargs = {"epsilon": parser.parse_args().epsilon,
                   "batch": parser.parse_args().mini_batch_gd,
                   "sgd": parser.parse_args().stochastic_gd,
