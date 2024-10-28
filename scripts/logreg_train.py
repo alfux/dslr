@@ -1,11 +1,13 @@
 import argparse as arg
 import sys
-from typing import Self, Callable
 import warnings
+from typing import Callable
+from typing_extensions import Self
 
 import numpy as np
 import pandas as pd
-from pandas import DataFrame
+import matplotlib.pyplot as plt
+from pandas import DataFrame, Series
 
 
 class SortingHatLogreg:
@@ -13,13 +15,12 @@ class SortingHatLogreg:
 
     def __init__(self: Self, data: DataFrame, **kwargs: dict) -> None:
         """Starts a logistic regression for each house."""
-        data = data.drop(["Index", "First Name", "Last Name", "Arithmancy",
-                          "Birthday", "Best Hand", "Astronomy", "Potions",
-                          "Care of Magical Creatures"], axis=1)
+        data = self._drop_common_columns(data)
         if "epsilon" in kwargs and kwargs["epsilon"] is not None:
             self._epsilon = np.abs(float(kwargs["epsilon"]))
         else:
             self._epsilon = 1e-2
+        self._display_option(**kwargs)
         print(f"Maximal gradient norm condition: {self._epsilon}")
         if "nr" in kwargs and kwargs["nr"]:
             print("Training with Newton-Raphson algorithm:")
@@ -36,6 +37,24 @@ class SortingHatLogreg:
         else:
             print("Training with basic (batch) gradient descent algorithm:")
             self._batch_algorithm(data)
+        if self._display:
+            plt.show()
+
+    def _drop_common_columns(self: Self, data: DataFrame) -> DataFrame:
+        """Drops columns useless for all four houses."""
+        return data.drop(["Index", "First Name", "Last Name", "Arithmancy",
+                          "Birthday", "Best Hand", "Astronomy", "Potions",
+                          "Care of Magical Creatures"], axis=1)
+
+    def _display_option(self: Self, **kwargs) -> None:
+        """Sets display otpions."""
+        if "display" in kwargs:
+            self._display = kwargs["display"]
+            self._colors = [(0.3, 0, 1, 1), (0, 0.5, 0, 1), (1, 0, 0, 1),
+                            (1, 0.7, 0, 1)]
+            self._color_index = 0
+        else:
+            self._display = False
 
     def _pre_process(self: Self, data: DataFrame) -> DataFrame:
         """Pre-processes datas for logistic regression."""
@@ -121,6 +140,7 @@ class SortingHatLogreg:
         self._y = y
         p = np.array([1.0] * len(self._data.columns))
         (nabla, norm) = self._gradient(p)
+        vis_grad = pd.Series(self._log_likelihood(p))
         while norm > self._epsilon:
             print(f"\r{np.clip(self._epsilon / norm, 0, 1):.2%}", end="")
             reverse_hessian = self._reversed_hessian(p)
@@ -129,11 +149,13 @@ class SortingHatLogreg:
                 quit()
             prev = p
             p = 0.1 * np.array((reverse_hessian @ (-nabla)).flat)
+            self._concat_values(p, vis_grad)
             if np.linalg.norm(p - prev) < self._epsilon:
                 break
             (nabla, norm) = self._gradient(p)
         for i in range(len(p)):
             p[i] /= self._reduc_coef[i]
+        self._plot_values(vis_grad)
         return [p[i] if i < len(p) else 0 for i in range(14)]
 
     def _reversed_hessian(self: Self, p: np.ndarray) -> np.ndarray:
@@ -184,13 +206,16 @@ class SortingHatLogreg:
         self._y = y
         p = np.array([0.0] * len(self._data.columns))
         (nabla, norm) = self._gradient(p)
+        vis_grad = pd.Series(self._log_likelihood(p))
         while norm > self._epsilon:
             print(f"\r{np.clip(self._epsilon / norm, 0, 1):.2%}", end="")
             nabla /= norm
             p = p + self._learning_rate(p, nabla) * nabla
+            self._concat_values(p, vis_grad)
             (nabla, norm) = self._gradient(p)
         for i in range(len(p)):
             p[i] /= self._reduc_coef[i]
+        self._plot_values(vis_grad)
         return [p[i] if i < len(p) else 0 for i in range(14)]
 
     def _learning_rate(self: Self, p: np.ndarray, nabla: np.ndarray) -> float:
@@ -254,6 +279,7 @@ class SortingHatLogreg:
         p = np.array([0.0] * len(self._data.columns))
         (nabla, norm) = self._gradient(p)
         batch = np.clip(self._batch, 0, self._data.shape[0])
+        vis_grad = pd.Series(self._log_likelihood(p))
         while norm > self._epsilon:
             print(f"\r{np.clip(self._epsilon / norm, 0, 1):.2%}", end="")
             self._data = self._data.sample(frac=1)
@@ -264,9 +290,11 @@ class SortingHatLogreg:
                     nabla /= norm
                 p = p + self._stochastic_learning_rate(p, nabla, i,
                                                        batch) * nabla
+                vis_grad = self._concat_values(p, vis_grad)
             (nabla, norm) = self._gradient(p)
         for i in range(len(p)):
             p[i] /= self._reduc_coef[i]
+        self._plot_values(vis_grad)
         return [p[i] if i < len(p) else 0 for i in range(14)]
 
     def _stochastic_learning_rate(self: Self, p: np.ndarray, nabla: np.ndarray,
@@ -316,6 +344,33 @@ class SortingHatLogreg:
                 (b, fb) = (c, fc)
         return a if np.abs(fa) < np.abs(fb) else b
 
+    def _log_likelihood(self: Self, p: np.ndarray) -> float | None:
+        """Returns the value of log-likelihood in point p."""
+        if not self._display:
+            return None
+        value = 0
+        for i in range(self._data.shape[0]):
+            xi = np.array(self._data.loc[i])
+            yi = self._y(xi[0])
+            xi[0] = 1
+            p_xi = np.dot(p, xi)
+            value += -np.log(1 + np.exp(-yi * p_xi))
+        value /= -self._data.shape[0]
+        return value
+
+    def _concat_values(self: Self, p: float, values: Series) -> Series | None:
+        """Concatenates values from loglikelihood if necessary."""
+        if self._display:
+            return pd.concat([values, pd.Series(self._log_likelihood(p))],
+                             ignore_index=True)
+        return None
+
+    def _plot_values(self: Self, values: Series) -> None:
+        """Plots currents values with current color."""
+        if self._display:
+            values.plot(color=self._colors[self._color_index])
+            self._color_index += 1
+
     def _observed_ravenclaw(self: Self, house: str) -> int:
         """Digital representation of the observed belonging to ravenclaw."""
         return 1 if house == "Ravenclaw" else -1
@@ -347,12 +402,15 @@ def main() -> None:
         parser.add_argument("-e", "--epsilon", help="sets epsilon precision")
         parser.add_argument("-n", "--newton-raphson", action="store_true",
                             help="use newton-raphson algorithm")
+        parser.add_argument("-d", "--display", action="store_true",
+                            help="displays iterations of the LLH values")
         data = pd.read_csv(parser.parse_args().file)
         sorting_hat = SortingHatLogreg(
             data, epsilon=parser.parse_args().epsilon,
             batch=parser.parse_args().mini_batch_gd,
             sgd=parser.parse_args().stochastic_gd,
-            nr=parser.parse_args().newton_raphson)
+            nr=parser.parse_args().newton_raphson,
+            display=parser.parse_args().display)
         sorting_hat.logreg_coef.to_csv("logreg_coefs.csv", index=False)
     except Exception as err:
         print(f"{err.__class__.__name__}: {err}", file=sys.stderr)

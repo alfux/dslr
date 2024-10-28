@@ -2,4 +2,4 @@ venv
 sub
 *__pycache__
 *houses.csv
-*logreg_coefs.csv
+*logreg_coef.csv
