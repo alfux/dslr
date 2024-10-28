@@ -1,8 +1,7 @@
 import argparse as arg
 import sys
 import warnings
-from typing import Callable
-from typing_extensions import Self
+from typing import Callable, Self
 
 import numpy as np
 import pandas as pd
@@ -140,7 +139,7 @@ class SortingHatLogreg:
         self._y = y
         p = np.array([1.0] * len(self._data.columns))
         (nabla, norm) = self._gradient(p)
-        vis_grad = pd.Series(self._log_likelihood(p))
+        vis_llh = pd.Series(self._log_likelihood(p))
         while norm > self._epsilon:
             print(f"\r{np.clip(self._epsilon / norm, 0, 1):.2%}", end="")
             reverse_hessian = self._reversed_hessian(p)
@@ -149,13 +148,13 @@ class SortingHatLogreg:
                 quit()
             prev = p
             p = 0.1 * np.array((reverse_hessian @ (-nabla)).flat)
-            self._concat_values(p, vis_grad)
+            vis_llh = self._concat_values(p, vis_llh)
             if np.linalg.norm(p - prev) < self._epsilon:
                 break
             (nabla, norm) = self._gradient(p)
         for i in range(len(p)):
             p[i] /= self._reduc_coef[i]
-        self._plot_values(vis_grad)
+        self._plot_values(vis_llh)
         return [p[i] if i < len(p) else 0 for i in range(14)]
 
     def _reversed_hessian(self: Self, p: np.ndarray) -> np.ndarray:
@@ -206,16 +205,16 @@ class SortingHatLogreg:
         self._y = y
         p = np.array([0.0] * len(self._data.columns))
         (nabla, norm) = self._gradient(p)
-        vis_grad = pd.Series(self._log_likelihood(p))
+        vis_llh = pd.Series(self._log_likelihood(p))
         while norm > self._epsilon:
             print(f"\r{np.clip(self._epsilon / norm, 0, 1):.2%}", end="")
             nabla /= norm
             p = p + self._learning_rate(p, nabla) * nabla
-            self._concat_values(p, vis_grad)
+            vis_llh = self._concat_values(p, vis_llh)
             (nabla, norm) = self._gradient(p)
         for i in range(len(p)):
             p[i] /= self._reduc_coef[i]
-        self._plot_values(vis_grad)
+        self._plot_values(vis_llh)
         return [p[i] if i < len(p) else 0 for i in range(14)]
 
     def _learning_rate(self: Self, p: np.ndarray, nabla: np.ndarray) -> float:
@@ -279,7 +278,7 @@ class SortingHatLogreg:
         p = np.array([0.0] * len(self._data.columns))
         (nabla, norm) = self._gradient(p)
         batch = np.clip(self._batch, 0, self._data.shape[0])
-        vis_grad = pd.Series(self._log_likelihood(p))
+        vis_llh = pd.Series(self._log_likelihood(p))
         while norm > self._epsilon:
             print(f"\r{np.clip(self._epsilon / norm, 0, 1):.2%}", end="")
             self._data = self._data.sample(frac=1)
@@ -290,11 +289,11 @@ class SortingHatLogreg:
                     nabla /= norm
                 p = p + self._stochastic_learning_rate(p, nabla, i,
                                                        batch) * nabla
-                vis_grad = self._concat_values(p, vis_grad)
+                vis_llh = self._concat_values(p, vis_llh)
             (nabla, norm) = self._gradient(p)
         for i in range(len(p)):
             p[i] /= self._reduc_coef[i]
-        self._plot_values(vis_grad)
+        self._plot_values(vis_llh)
         return [p[i] if i < len(p) else 0 for i in range(14)]
 
     def _stochastic_learning_rate(self: Self, p: np.ndarray, nabla: np.ndarray,
@@ -411,7 +410,7 @@ def main() -> None:
             sgd=parser.parse_args().stochastic_gd,
             nr=parser.parse_args().newton_raphson,
             display=parser.parse_args().display)
-        sorting_hat.logreg_coef.to_csv("logreg_coefs.csv", index=False)
+        sorting_hat.logreg_coef.to_csv("logreg_coef.csv", index=False)
     except Exception as err:
         print(f"{err.__class__.__name__}: {err}", file=sys.stderr)
 
