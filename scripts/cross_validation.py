@@ -45,12 +45,15 @@ def main() -> None:
         parser.add_argument("-e", "--epsilon", help="sets epsilon precision")
         parser.add_argument("-n", "--newton-raphson", action="store_true",
                             help="use newton-raphson algorithm")
+        parser.add_argument("-d", "--display", action="store_true",
+                            help="displays iterations of the LLH values")
         samples = split_sample(pd.read_csv(parser.parse_args().file),
                                np.abs(int(parser.parse_args().N)))
         kwargs = {"epsilon": parser.parse_args().epsilon,
                   "batch": parser.parse_args().mini_batch_gd,
                   "sgd": parser.parse_args().stochastic_gd,
-                  "nr": parser.parse_args().newton_raphson}
+                  "nr": parser.parse_args().newton_raphson,
+                  "display": parser.parse_args().display}
         precision = compute_precision(samples, **kwargs)
         print(f"Overall model's precision is {precision:.2%}")
     except Exception as err:

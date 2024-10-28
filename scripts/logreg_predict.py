@@ -1,6 +1,7 @@
 import argparse as arg
 import sys
-from typing import Generator, Self
+from typing import Generator
+from typing_extensions import Self
 
 import pandas as pd
 from pandas import DataFrame, Series

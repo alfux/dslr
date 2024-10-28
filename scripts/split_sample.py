@@ -12,7 +12,7 @@ def split_sample(sample: pd.DataFrame, n: int) -> list[pd.DataFrame]:
     n = n if n != 0 else 1
     size = sample.shape[0] // n
 
-    def sample_generator() -> Generator[pd.DataFrame]:
+    def sample_generator() -> Generator:
         """Size n sample generator."""
         for i in range(n):
             yield sample[i * size:(i + 1) * size].reset_index(drop=True)

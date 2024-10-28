@@ -1,7 +1,8 @@
 import argparse as arg
 import sys
 import warnings
-from typing import Callable, Self
+from typing import Callable
+from typing_extensions import Self
 
 import numpy as np
 import pandas as pd
