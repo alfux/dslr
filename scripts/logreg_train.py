@@ -348,12 +348,12 @@ def main() -> None:
         parser.add_argument("-n", "--newton-raphson", action="store_true",
                             help="use newton-raphson algorithm")
         data = pd.read_csv(parser.parse_args().file)
-        SortingHat = SortingHatLogreg(
+        sorting_hat = SortingHatLogreg(
             data, epsilon=parser.parse_args().epsilon,
             batch=parser.parse_args().mini_batch_gd,
             sgd=parser.parse_args().stochastic_gd,
             nr=parser.parse_args().newton_raphson)
-        SortingHat.logreg_coef.to_csv("logreg_coefs.csv", index=False)
+        sorting_hat.logreg_coef.to_csv("logreg_coefs.csv", index=False)
     except Exception as err:
         print(f"{err.__class__.__name__}: {err}", file=sys.stderr)
 
